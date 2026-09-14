@@ -1,0 +1,131 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"postgres\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - PostgreSQL", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 16},
+      "id": 2,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"timescaledb\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - TimescaleDB", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 32},
+      "id": 3,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"pgadmin\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - pgAdmin", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 48},
+      "id": 4,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"nodered\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - Node-RED", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 64},
+      "id": 5,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"kafka\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - Kafka", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 80},
+      "id": 6,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"schema-registry\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - Schema Registry", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 96},
+      "id": 7,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"akhq\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - AKHQ", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 112},
+      "id": 8,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"opc-server\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - OPC UA Server", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 128},
+      "id": 9,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"loki\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - Loki", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 144},
+      "id": 10,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"alloy\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - Alloy", "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 16, "w": 24, "x": 0, "y": 160},
+      "id": 11,
+      "options": {"deduplication": "exact", "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": true},
+      "targets": [{"datasource": {"type": "loki", "uid": "loki"}, "editorMode": "code", "expr": "{service=\"grafana\"}", "queryType": "range", "refId": "A"}],
+      "title": "Logs - Grafana", "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "logs",
+    "grafana",
+    "services",
+    "loki"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Logs par service",
+  "uid": "grafana-logs",
+  "version": 6
+}

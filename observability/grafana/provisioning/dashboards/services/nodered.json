@@ -1,0 +1,6 @@
+{
+  "annotations":{"list":[]},"editable":true,"panels":[
+    {"datasource":{"type":"loki","uid":"loki"},"gridPos":{"h":16,"w":24,"x":0,"y":0},"id":1,"options":{"deduplication":"exact","showLabels":true,"showTime":true,"sortOrder":"Descending","wrapLines":true},"targets":[{"expr":"{service=\"nodered\"}","queryType":"range","refId":"A"}],"title":"Logs - Node-RED","type":"logs"},
+    {"gridPos":{"h":8,"w":24,"x":0,"y":16},"id":2,"options":{"content":"Aucune datasource métrique n'est configurée actuellement. Ajoutez Prometheus ou InfluxDB pour afficher les métriques de ce service.","mode":"markdown"},"title":"Métriques - Node-RED","type":"text"}
+  ],"refresh":"10s","schemaVersion":39,"tags":["logs","metrics","nodered"],"time":{"from":"now-1h","to":"now"},"timezone":"browser","title":"Node-RED","uid":"service-nodered","version":1
+}

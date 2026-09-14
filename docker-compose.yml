@@ -1,0 +1,210 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: appdb
+      TIMESCALEDB_TELEMETRY: "off"
+    ports:
+      - "5432:5432"
+    volumes:
+      # sudo mkdir -p /data/postgresql
+      # sudo chown -R 1000:1000 /data/postgresql
+      - /data/postgresql:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: appdb
+      TIMESCALEDB_TELEMETRY: "off"
+    ports:
+      - "5433:5432"
+    volumes:
+      # sudo mkdir -p /data/timescaledb
+      # sudo chown -R 1000:1000 /data/timescaledb
+      - /data/timescaledb:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+
+  # influxdb:
+  #   image: influxdb:2.7
+  #   container_name: influxdb
+  #   ports:
+  #     - "8086:8086"
+  #   volumes:
+  #     - /data/influxdb:/var/lib/influxdb2
+  #   environment:
+  #     - DOCKER_INFLUXDB_INIT_MODE=setup
+  #     - DOCKER_INFLUXDB_INIT_USERNAME=admin
+  #     - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
+  #     - DOCKER_INFLUXDB_INIT_ORG=home
+  #     - DOCKER_INFLUXDB_INIT_BUCKET=telegraf
+  #   restart: unless-stopped
+  
+  nodered:
+    build: .
+    container_name: nodered
+    ports:
+      - "1880:1880"
+#      - "53880:53880"
+    volumes:
+     # sudo mkdir -p /data/nodered
+      # sudo chown -R 1000:1000 /data/nodered
+      #- /data/nodered/flows:/data/flows
+      - /data/nodered:/data
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: kafka
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      # Paramètres adaptés à un broker unique
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    volumes:
+      # sudo mkdir -p /data/kafka
+      # sudo chown -R 1000:1000 /data/kafka
+      - /data/kafka:/var/lib/kafka/data
+  
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.2.2
+    container_name: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL: PLAINTEXT
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: "1"
+
+    restart: unless-stopped
+    volumes:
+      # sudo mkdir -p /data/registry
+      # sudo chown -R 1000:1000 /data/registry
+      - /data/schema-registry:/var/lib/schema-registry
+  
+  akhq:
+#    image: tchiotludo/akhq:latest
+    image: tchiotludo/akhq:0.27.1
+    container_name: akhq
+    depends_on:
+      - kafka
+      - schema-registry
+    ports:
+      - "8080:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            kraft-kafka:
+              properties:
+                bootstrap.servers: "kafka:9092"
+              schema-registry:
+                url: "http://schema-registry:8081"
+
+  opc-server:
+    build:
+      context: ./opcua-server
+      dockerfile: Dockerfile
+    container_name: opc-server
+    ports:
+      - "4840:4840"
+      - "53880:53880"
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: loki
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      # sudo mkdir -p /data/loki
+      # sudo chown -R 10001:10001 /data/loki
+      - /data/loki:/loki
+      - ./observability/loki-config.yml:/etc/loki/config.yml:ro
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.10.2
+    container_name: alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+    depends_on:
+      - loki
+    volumes:
+      # sudo mkdir -p /data/alloy
+      # sudo chown -R 1000:1000 /data/alloy
+      - ./observability/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /data/alloy:/var/lib/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: grafana
+    depends_on:
+      - loki
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      # sudo mkdir -p /data/grafana
+      # sudo chown -R 472:472 /data/grafana
+      - /data/grafana:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
