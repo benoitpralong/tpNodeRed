@@ -15,6 +15,44 @@ docker compose up -d --build
 docker compose ps
 ```
 
+The deployment also creates the Kafka topic `demo` through the one-shot
+`kafka-init` service. Node-RED uses the persistent flow configuration in
+`/data`; the repository flow file is available at `nodered/flows.json` for
+manual import.
+The flow consumes plain UTF-8 text, inserts it into PostgreSQL table `demo`,
+reads OPC UA tag `CAB`, stores that sample in TimescaleDB table `tag_values`,
+and writes a random value from 1 to 10 to OPC UA tag `Direction`.
+
+Send a test message to Kafka:
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-console-producer.sh \
+	--bootstrap-server kafka:9092 --topic demo
+```
+
+Then enter a text line and press Enter. Check the stored values with:
+
+```bash
+docker compose exec postgres psql -U admin -d appdb \
+	-c "SELECT * FROM demo ORDER BY id DESC LIMIT 5;"
+docker compose exec timescaledb psql -U admin -d appdb \
+	-c "SELECT * FROM tag_values ORDER BY time DESC LIMIT 5;"
+```
+
+The SQL files in `postgres-init/` and `timescaledb-init/` are executed by
+PostgreSQL only when the corresponding data directory is initialized. For an
+existing installation, apply the scripts manually or recreate the development
+data directories after backing up any data.
+
+For an existing PostgreSQL volume, apply the missing schema without deleting
+data:
+
+```bash
+docker compose run --rm postgres-schema-init
+docker compose run --rm timescale-schema-init
+docker compose up -d nodered
+```
+
 Stop the stack without removing persistent data:
 
 ```bash
@@ -26,18 +64,16 @@ docker compose down
 | Service | Container | Port(s) | Purpose |
 | --- | --- | --- | --- |
 | PostgreSQL | `postgres` | `5432` | General-purpose PostgreSQL database using `appdb`. |
-| TimescaleDB | `timescaledb` | `5433` | PostgreSQL-compatible time-series database. Initialization scripts are loaded from `postgres-init/`. |
+| TimescaleDB | `timescaledb` | `5433` | PostgreSQL-compatible time-series database. Initialization scripts are loaded from `timescaledb-init/`. |
 | pgAdmin | `pgadmin` | `5050` | Web administration interface for PostgreSQL and TimescaleDB. |
 | Node-RED | `nodered` | `1880` | Flow-based integration and automation runtime, built from the root `Dockerfile`. |
 | Kafka | `kafka` | `9094` external, `9092` internal | Single-node Kafka broker using KRaft mode. |
 | Schema Registry | `schema-registry` | `8081` | Stores and serves Kafka message schemas. |
 | AKHQ | `akhq` | `8080` | Web interface for Kafka topics, brokers, and schemas. |
-| OPC UA Server | `opc-server` | `4840`, `53880` | Demo OPC UA server implemented in `opcua-server/server.py`. |
+| OPC UA Server | `opc-server` | `53880` | Demo OPC UA server implemented in `opcua-server/server.py`. |
 | Loki | `loki` | `3100` | Log database and HTTP API. |
 | Alloy | `alloy` | internal | Discovers Docker containers and forwards their logs to Loki. |
 | Grafana | `grafana` | `3000` | Dashboards for logs and future metrics. |
-
-The InfluxDB service is currently commented out in `docker-compose.yml`; it is not started by the stack.
 
 ### Default credentials
 
@@ -119,7 +155,7 @@ The implementation is in `opcua-server/server.py`. The image is built from `opcu
 ### What `server.py` does
 
 1. Creates an asynchronous `asyncua.Server`.
-2. Listens on `opc.tcp://0.0.0.0:53880/UA/MinimalServer`.
+2. Uses `OPCUA_ENDPOINT` for the advertised endpoint, defaulting to `opc.tcp://localhost:53880/UA/MinimalServer`.
 3. Registers the namespace `http://demo.local/opcua`.
 4. Creates the `DemoTP` object under the OPC UA Objects folder.
 5. Creates `CAB`, `Direction`, and `Speed` as `Int16` variables initialized to `0`.
@@ -127,6 +163,10 @@ The implementation is in `opcua-server/server.py`. The image is built from `opcu
 7. Reads every tag once per second.
 8. Writes an application log only when a tag value changes.
 9. Reduces the noisy `asyncua.server.subscription_service` logger to `WARNING` while preserving warnings and errors.
+
+From Node-RED, which runs in the Compose network, configure the OPC UA client with
+`opc.tcp://opc-server:53880/UA/MinimalServer`. From the host, use
+`opc.tcp://localhost:53880/UA/MinimalServer`. Do not use `0.0.0.0` as a client endpoint.
 
 Example application log:
 
@@ -211,7 +251,7 @@ There is one dashboard per active Compose service. Each dashboard contains:
 1. One **Logs** panel backed by Loki and filtered to the service label.
 2. One **Metrics** panel.
 
-The metrics panels are currently informational placeholders because no Prometheus or InfluxDB datasource is configured. They do not generate failed datasource queries.
+The metrics panels are currently informational placeholders because no metrics datasource is configured. They do not generate failed datasource queries.
 
 | Dashboard | Log query | Metrics status |
 | --- | --- | --- |
@@ -233,7 +273,7 @@ The older multi-service dashboard is still stored as `observability/grafana/prov
 
 To replace the metrics placeholders:
 
-1. Add a metrics backend such as Prometheus or InfluxDB.
+1. Add a metrics backend such as Prometheus.
 2. Provision its datasource in Grafana.
 3. Expose or collect metrics from the target service.
 4. Replace the text panel in that service dashboard with a Grafana metrics panel and the correct query.

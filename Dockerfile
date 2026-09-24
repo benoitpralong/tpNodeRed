@@ -8,6 +8,6 @@ RUN npm install \
     node-red-contrib-opcua \
     #node-red-contrib-opcua-server \
     node-red-contrib-aedes \
+    node-red-contrib-postgresql \
+    node-red-contrib-kafkajs \
     --save
-
-#COPY inject/104-opcuaserver.js /usr/src/node-red/node_modules/node-red-contrib-opcua/opcua/104-opcuaserver.js

@@ -1,12 +1,13 @@
 import asyncio
 import logging
+import os
 
 from asyncua import Server, ua
 
 
 NAMESPACE_INDEX = 1
 NAMESPACE_URI = "http://demo.local/opcua"
-ENDPOINT = "opc.tcp://0.0.0.0:53880/UA/MinimalServer"
+ENDPOINT = os.getenv("OPCUA_ENDPOINT", "opc.tcp://localhost:53880/UA/MinimalServer")
 LOGGER = logging.getLogger(__name__)
 
 

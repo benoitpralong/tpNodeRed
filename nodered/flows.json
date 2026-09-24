@@ -1,0 +1,348 @@
+[
+    {
+        "id": "demo-flow",
+        "type": "tab",
+        "label": "Kafka demo -> PostgreSQL / Timescale",
+        "disabled": false,
+        "info": "Consumes text from Kafka demo, stores it in PostgreSQL, reads OPC UA CAB into TimescaleDB, and writes a random Direction value."
+    },
+    {
+        "id": "kafka-demo-in",
+        "type": "kafkajs-consumer",
+        "z": "demo-flow",
+        "name": "Kafka demo",
+        "client": "3c338546efb345e5",
+        "groupid": "demo-nodered",
+        "topic": "demo",
+        "advancedoptions": false,
+        "autocommitinterval": "",
+        "autocommitthreshold": "",
+        "sessiontimeout": "",
+        "rebalancetimeout": "",
+        "heartbeatinterval": "",
+        "metadatamaxage": "",
+        "maxbytesperpartition": "",
+        "minbytes": "",
+        "maxbytes": "",
+        "maxwaittimeinms": "",
+        "frombeginning": false,
+        "clearoffsets": false,
+        "allowautotopiccreation": false,
+        "x": 170,
+        "y": 180,
+        "wires": [
+            [
+                "prepare-demo-message"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-demo-message",
+        "type": "function",
+        "z": "demo-flow",
+        "name": "Prepare text + tag actions",
+        "func": "let value = msg.payload;\nif (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'value')) {\n    value = value.value;\n}\nif (Buffer.isBuffer(value)) {\n    value = value.toString('utf8');\n}\nif (value === undefined || value === null) {\n    node.warn('Kafka message has no value');\n    return null;\n}\nconst textMessage = { ...msg, params: [String(value)], query: 'INSERT INTO demo (texte) VALUES ($1);' };\nconst cabMessage = { topic: 'ns=1;s=CAB', payload: { action: 'read' }, tag: 'CAB' };\nconst directionMessage = { topic: 'ns=1;s=Direction', payload: Math.floor(Math.random() * 10) + 1, datatype: 'Int16' };\nreturn [textMessage, cabMessage, directionMessage];",
+        "outputs": 3,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 180,
+        "wires": [
+            [
+                "insert-demo"
+            ],
+            [
+                "cab-item"
+            ],
+            [
+                "direction-item"
+            ]
+        ]
+    },
+    {
+        "id": "insert-demo",
+        "type": "postgresql",
+        "z": "demo-flow",
+        "name": "Insert demo text",
+        "query": "INSERT INTO demo (texte) VALUES ($1);",
+        "postgreSQLConfig": "postgres-config",
+        "split": false,
+        "rowsPerMsg": "1",
+        "outputs": 1,
+        "x": 700,
+        "y": 100,
+        "wires": [
+            [
+                "debug-demo"
+            ]
+        ]
+    },
+    {
+        "id": "cab-item",
+        "type": "OpcUa-Item",
+        "z": "demo-flow",
+        "item": "ns=1;s=CAB",
+        "datatype": "Int16",
+        "value": "",
+        "name": "CAB",
+        "x": 660,
+        "y": 200,
+        "wires": [
+            [
+                "read-cab"
+            ]
+        ]
+    },
+    {
+        "id": "read-cab",
+        "type": "OpcUa-Client",
+        "z": "demo-flow",
+        "endpoint": "opcua-endpoint",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": "",
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "",
+        "maxMessageSize": "",
+        "receiveBufferSize": "",
+        "sendBufferSize": "",
+        "name": "Read CAB",
+        "x": 890,
+        "y": 200,
+        "wires": [
+            [
+                "prepare-cab-insert"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "prepare-cab-insert",
+        "type": "function",
+        "z": "demo-flow",
+        "name": "Prepare CAB sample",
+        "func": "let value = msg.payload;\nif (value && typeof value === 'object' && value.value !== undefined) {\n    value = value.value;\n}\nmsg.params = ['CAB', Number(value)];\nmsg.query = 'INSERT INTO tag_values (tag, value) VALUES ($1, $2);';\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1130,
+        "y": 200,
+        "wires": [
+            [
+                "insert-cab"
+            ]
+        ]
+    },
+    {
+        "id": "insert-cab",
+        "type": "postgresql",
+        "z": "demo-flow",
+        "name": "Insert CAB in Timescale",
+        "query": "INSERT INTO tag_values (tag, value) VALUES ($1, $2);",
+        "postgreSQLConfig": "timescale-config",
+        "split": false,
+        "rowsPerMsg": "1",
+        "outputs": 1,
+        "x": 1390,
+        "y": 200,
+        "wires": [
+            [
+                "debug-cab"
+            ]
+        ]
+    },
+    {
+        "id": "direction-item",
+        "type": "OpcUa-Item",
+        "z": "demo-flow",
+        "item": "ns=1;s=Direction",
+        "datatype": "Int16",
+        "value": "",
+        "name": "Direction random 1..10",
+        "x": 700,
+        "y": 320,
+        "wires": [
+            [
+                "write-direction"
+            ]
+        ]
+    },
+    {
+        "id": "write-direction",
+        "type": "OpcUa-Client",
+        "z": "demo-flow",
+        "endpoint": "opcua-endpoint",
+        "action": "write",
+        "deadbandtype": "a",
+        "deadbandvalue": "",
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "",
+        "maxMessageSize": "",
+        "receiveBufferSize": "",
+        "sendBufferSize": "",
+        "name": "Write Direction",
+        "x": 950,
+        "y": 320,
+        "wires": [
+            [
+                "debug-direction"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "debug-demo",
+        "type": "debug",
+        "z": "demo-flow",
+        "name": "demo inserted",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "x": 950,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "debug-cab",
+        "type": "debug",
+        "z": "demo-flow",
+        "name": "CAB inserted",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "x": 1630,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "debug-direction",
+        "type": "debug",
+        "z": "demo-flow",
+        "name": "Direction written",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1190,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "3c338546efb345e5",
+        "type": "kafkajs-client",
+        "name": "demo-kafka",
+        "brokers": "kafka:9092",
+        "clientid": "demo-nodered",
+        "connectiontimeout": 3000,
+        "requesttimeout": 25000,
+        "advancedretry": false,
+        "maxretrytime": 30000,
+        "initialretrytime": 300,
+        "factor": 0.2,
+        "multiplier": 2,
+        "retries": 5,
+        "auth": "none",
+        "tlsselfsign": false,
+        "tlscacert": "",
+        "tlsclientcert": "",
+        "tlsprivatekey": "",
+        "tlspassphrase": "",
+        "saslssl": true,
+        "saslmechanism": "plain",
+        "loglevel": "error"
+    },
+    {
+        "id": "postgres-config",
+        "type": "postgreSQLConfig",
+        "name": "PostgreSQL appdb",
+        "host": "postgres",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "appdb",
+        "databaseFieldType": "str",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "max": "10",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "userFieldType": "str",
+        "passwordFieldType": "str"
+    },
+    {
+        "id": "opcua-endpoint",
+        "type": "OpcUa-Endpoint",
+        "endpoint": "opc.tcp://opc-server:53880/UA/MinimalServer",
+        "secpol": "None",
+        "secmode": "None",
+        "none": true,
+        "login": false,
+        "usercert": false,
+        "usercertificate": "",
+        "userprivatekey": ""
+    },
+    {
+        "id": "timescale-config",
+        "type": "postgreSQLConfig",
+        "name": "TimescaleDB appdb",
+        "host": "timescaledb",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "appdb",
+        "databaseFieldType": "str",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "max": "10",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "userFieldType": "str",
+        "passwordFieldType": "str"
+    },
+    {
+        "id": "319f098d81702708",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-kafkajs": "0.0.7",
+            "node-red-contrib-postgresql": "0.16.2",
+            "node-red-contrib-opcua": "0.2.355"
+        }
+    }
+]

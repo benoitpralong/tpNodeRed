@@ -9,6 +9,6 @@ RUN pip install --trusted-host pypi.org \
 
 COPY server.py .
 
-EXPOSE 4840
+EXPOSE 53880
 
 CMD ["python", "server.py"]

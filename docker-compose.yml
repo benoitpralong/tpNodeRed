@@ -13,11 +13,15 @@ services:
       # sudo mkdir -p /data/postgresql
       # sudo chown -R 1000:1000 /data/postgresql
       - /data/postgresql:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - default
+      - tp-network
     restart: unless-stopped
 
   timescaledb:
@@ -34,7 +38,7 @@ services:
       # sudo mkdir -p /data/timescaledb
       # sudo chown -R 1000:1000 /data/timescaledb
       - /data/timescaledb:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+      - ./timescaledb-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
       interval: 10s
@@ -57,25 +61,13 @@ services:
         condition: service_healthy
       timescaledb:
         condition: service_healthy
-
-  # influxdb:
-  #   image: influxdb:2.7
-  #   container_name: influxdb
-  #   ports:
-  #     - "8086:8086"
-  #   volumes:
-  #     - /data/influxdb:/var/lib/influxdb2
-  #   environment:
-  #     - DOCKER_INFLUXDB_INIT_MODE=setup
-  #     - DOCKER_INFLUXDB_INIT_USERNAME=admin
-  #     - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
-  #     - DOCKER_INFLUXDB_INIT_ORG=home
-  #     - DOCKER_INFLUXDB_INIT_BUCKET=telegraf
-  #   restart: unless-stopped
   
   nodered:
     build: .
     container_name: nodered
+    networks:
+      - default
+      - tp-network
     ports:
       - "1880:1880"
 #      - "53880:53880"
@@ -84,7 +76,72 @@ services:
       # sudo chown -R 1000:1000 /data/nodered
       #- /data/nodered/flows:/data/flows
       - /data/nodered:/data
+      - ./nodered/flows.json:/data/flows.json:ro
+    environment:
+      FLOWS: flows.json
+    depends_on:
+      kafka:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+      postgres-schema-init:
+        condition: service_completed_successfully
+      timescale-schema-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+
+  postgres-schema-init:
+    image: postgres:16
+    container_name: postgres-schema-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: admin123
+    volumes:
+      - ./postgres-init:/schema:ro
+    command:
+      - sh
+      - -c
+      - >-
+        psql -h postgres -U admin -d appdb -v ON_ERROR_STOP=1
+        -f /schema/001-timescaledb.sql
+    restart: "no"
+
+  timescale-schema-init:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescale-schema-init
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: admin123
+    volumes:
+      - ./timescaledb-init:/schema:ro
+    command:
+      - sh
+      - -c
+      - >-
+        psql -h timescaledb -U admin -d appdb -v ON_ERROR_STOP=1
+        -f /schema/001-timescaledb.sql
+    restart: "no"
+
+  kafka-init:
+    image: apache/kafka:4.3.1
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092
+        --list >/dev/null 2>&1; do sleep 2; done;
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092
+        --create --if-not-exists --topic demo --partitions 1 --replication-factor 1;
+    restart: "no"
 
   kafka:
     image: apache/kafka:4.3.1
@@ -158,9 +215,13 @@ services:
       context: ./opcua-server
       dockerfile: Dockerfile
     container_name: opc-server
+    networks:
+      - default
+      - tp-network
     ports:
-      - "4840:4840"
       - "53880:53880"
+    environment:
+      OPCUA_ENDPOINT: opc.tcp://opc-server:53880/UA/MinimalServer
 
   loki:
     image: grafana/loki:3.5.0
@@ -207,4 +268,8 @@ services:
       # sudo chown -R 472:472 /data/grafana
       - /data/grafana:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-    restart: unless-stopped
+    restart: unless-stopped 
+
+networks:
+  tp-network:
+    driver: bridge
