@@ -76,7 +76,7 @@ services:
       # sudo chown -R 1000:1000 /data/nodered
       #- /data/nodered/flows:/data/flows
       - /data/nodered:/data
-      - ./nodered/flows.json:/data/flows.json:ro
+      #- ./nodered/flows.json:/data/flows.json:ro
     environment:
       FLOWS: flows.json
     depends_on:
